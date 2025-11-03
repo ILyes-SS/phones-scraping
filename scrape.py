@@ -1,5 +1,6 @@
 import requests
 import re
+import csv
 
 #global variable that will store all phones as dictionaries
 phones = []
@@ -13,6 +14,7 @@ phone_data_shape = """
                     </h4> 
                 <h4 class="libelle-marque text-center "> <a title="Prix et Achat Téléphones Portables  6 Pouces - Algérie" href="/telephones-mobiles/?page=prix-telephones-portables-ecran-6-pouces-algerie&amp;dep1=520&amp;val1=3879&amp;position=20&amp;id_famille=3758"> 6.7 Pouces</a>&nbsp;&nbsp;<a title="Prix et Achat Téléphones Portables  AMOLED - Algérie" href="/telephones-mobiles/?page=prix-telephones-portables-qualite-ecran-amoled-algerie&amp;dep1=694&amp;val1=4071898&amp;position=20&amp;id_famille=3758"> AMOLED</a></h4>
                 <h4 class="libelle-marque text-center "> <a title="Prix et Achat Téléphones Portables Ram 8 Go - Algérie" href="/telephones-mobiles/?page=prix-telephones-portables-memoire-8-go-algerie&amp;dep1=697&amp;val1=43435&amp;position=20&amp;id_famille=3758">8 Go Ram</a>&nbsp;&nbsp;<a title="Prix et Achat Téléphones Portables Disque 256 Go - Algérie" href="/telephones-mobiles/?page=prix-telephones-portables-disque-256-go-algerie&amp;dep1=768&amp;val1=20280&amp;position=20&amp;id_famille=3758">256 Go Disque</a></h4>
+                //... more unecessary data ..
         </div>
 """
 
@@ -35,7 +37,12 @@ def populate_phones(shapes):
             phones.append({"price":price})  #append a dictionary with the phone data to the global list
 
     
-
+def create_csv():
+    fields = ['column1', 'price', 'column3'] #col headers (they must match the key names in the phones array)
+    with open('output.csv', 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(phones)
 
 for i in range(10): 
     #the website has pagination for the phones display (10 pages) visible in the url
@@ -50,6 +57,7 @@ for i in range(10):
             print(f'\n\n########### PAGE : {i}   ########## \n\n')
             shapes = getShapes(content)
             populate_phones(shapes)
+            create_csv()
         else:
             print(f"Error: status code {response.status_code}")
     except requests.exceptions.RequestException as e:
