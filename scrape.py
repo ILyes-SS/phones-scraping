@@ -25,21 +25,95 @@ def getShapes(html_content):
     return shapes
 
 def getPrice(data_shape):
-    match = re.search(r"Prix(?:.*?)(\d+ \d+) Da",data_shape,re.DOTALL)  #search for the price pattern
-    price = None if not match else match.group(1)  #first captured group or None if price is not mentioned
+    match = re.search(r'Prix(?:.*?)(\d{1,3}(?: \d{3})*)\s*Da', data_shape, re.DOTALL)
+    price = None if not match else int(match.group(1).replace(' ', ''))
     print("the price", price)
     return price
 
+
+def getPhoneName(data_shape):
+    """Extract the full phone name from the <a> tag in produit_titre"""
+    # Primary: <h3 class="produit_titre ..."><a>NAME</a></h3>
+    match = re.search(r'<h3[^>]*class="produit_titre[^"]*"[^>]*>\s*<a[^>]*>([^<]+)</a>', data_shape, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    # Fallback: any phone link anchor with a title inside the card
+    match = re.search(r'<a[^>]*title="[^"]*"[^>]*href="[^"]*telephones-mobiles[^"]*"[^>]*>([^<]+)</a>', data_shape, re.DOTALL)
+    return match.group(1).strip() if match else None
+
+def getBrand(phone_name):
+    """Extract brand from phone name (first word before space)"""
+    if not phone_name:
+        return None
+    # Extract first word (brand name)
+    match = re.search(r'^([A-Za-z]+)', phone_name.strip())
+    return match.group(1) if match else None
+
+def getRAM(phone_name):
+    """Extract RAM from phone name (number before /)"""
+    if not phone_name:
+        return None
+    # Match pattern like "12/256GB" or "8/256GO" - extract number before /
+    match = re.search(r'(\d+)\s*/\s*\d+\s*(?:GB|GO|Go)', phone_name, re.IGNORECASE)
+    return match.group(1) if match else None
+    
+def getStorage(phone_name):
+    """Extract storage from phone name (number and unit after /)"""
+    if not phone_name:
+        return None
+    # Match pattern like "12/256GB" or "8/256GO" - extract number and unit after /
+    match = re.search(r'\d+\s*/\s*(\d+\s*(?:GB|GO|Go))', phone_name, re.IGNORECASE)
+    return match.group(1) if match else None
+
+def getModelName(phone_name, brand):
+    """Extract model name by removing brand and RAM/Storage info"""
+    if not phone_name or not brand:
+        return None
+    # Remove brand from beginning
+    model = re.sub(rf'^{re.escape(brand)}\s*', '', phone_name, flags=re.IGNORECASE)
+    # Remove RAM/Storage pattern from end
+    model = re.sub(r'\s*\d+\s*/\s*\d+\s*(?:GB|GO|Go)\s*$', '', model, flags=re.IGNORECASE)
+    return model.strip() if model.strip() else None
+
+def extractPhoneInfo(phone_name):
+    """Extract brand, model, RAM, and storage in one go"""
+    if not phone_name:
+        return None, None, None, None
+    
+    # Pattern: Brand ModelName RAM/Storage
+    # Example: "Samsung Galaxy S25 Ultra  12/256GB"
+    pattern = r'^([A-Za-z]+)\s+(.+?)\s+(\d+)\s*/\s*(\d+\s*(?:GB|GO|Go))'
+    match = re.search(pattern, phone_name.strip(), re.IGNORECASE)
+    
+    if match:
+        brand = match.group(1)
+        model = match.group(2).strip()
+        ram = match.group(3)
+        storage = match.group(4)
+        return brand, model, ram, storage
+    
+    return None, None, None, None
+
+
 def populate_phones(shapes):
     for shape in shapes:
-        price = getPrice(shape)  #add the remaining functions
+        price = getPrice(shape)
+        name = getPhoneName(shape)
+        if not name:
+            continue
+        brand, model, ram, storage = extractPhoneInfo(name)
         if price:
-            phones.append({"price":price})  #append a dictionary with the phone data to the global list
-
+            phones.append({
+                'brand': brand,
+                'model': model,
+                'ram': ram,
+                'storage': storage,
+                'price': price
+            })
     
 def create_csv():
-    fields = ['column1', 'price', 'column3'] #col headers (they must match the key names in the phones array)
-    with open('output.csv', 'w') as csvfile:
+    fields = ['brand', 'model', 'ram', 'storage', 'price']
+    with open('output.csv', 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fields)
         writer.writeheader()
         writer.writerows(phones)
