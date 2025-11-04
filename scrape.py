@@ -75,34 +75,17 @@ def getModelName(phone_name, brand):
     model = re.sub(r'\s*\d+\s*/\s*\d+\s*(?:GB|GO|Go)\s*$', '', model, flags=re.IGNORECASE)
     return model.strip() if model.strip() else None
 
-def extractPhoneInfo(phone_name):
-    """Extract brand, model, RAM, and storage in one go"""
-    if not phone_name:
-        return None, None, None, None
-    
-    # Pattern: Brand ModelName RAM/Storage
-    # Example: "Samsung Galaxy S25 Ultra  12/256GB"
-    pattern = r'^([A-Za-z]+)\s+(.+?)\s+(\d+)\s*/\s*(\d+\s*(?:GB|GO|Go))'
-    match = re.search(pattern, phone_name.strip(), re.IGNORECASE)
-    
-    if match:
-        brand = match.group(1)
-        model = match.group(2).strip()
-        ram = match.group(3)
-        storage = match.group(4)
-        return brand, model, ram, storage
-    
-    return None, None, None, None
 
 
 def populate_phones(shapes):
     for shape in shapes:
         price = getPrice(shape)
         name = getPhoneName(shape)
-        if not name:
-            continue
-        brand, model, ram, storage = extractPhoneInfo(name)
-        if price:
+        brand = getBrand(name)
+        model = getModelName(name, brand)
+        ram = getRAM(name)
+        storage = getStorage(name)
+        if price and name and brand and model and ram and storage:
             phones.append({
                 'brand': brand,
                 'model': model,
