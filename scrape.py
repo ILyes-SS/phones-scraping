@@ -1,3 +1,8 @@
+#Group members: Benmalti Ilyes, Chenine omar sifeddine
+#website: https://webstar-electro.com/telephones-mobiles/?page=prix-telephones-portables-algerie&position=1&id_famille=3758
+#description: extracted data about phones (brand, model, ram, storage, price, display size, display type) and saved it in output.csv file
+#Ai was only used to help in correcting small mistakes in regex
+
 import requests
 import re
 import csv
@@ -5,7 +10,7 @@ import csv
 #global variable that will store all phones as dictionaries
 phones = []
 
-#each heading html element have some informations
+#each heading html element have some informations in it, this is an example of one a card body
 phone_data_shape = """
         <div class="card-body" style="padding-top:10px;">
            <h3 class="produit_titre text-center" style="height_:auto; margin-bottom:0px;"><a target="_blank" title="Prix et Achat en Ligne Xiaomi  Poco M7 Pro 8/256GO - Algérie" href="/telephones-mobiles/?produit=achat-vente-telephones-portables-xiaomi-poco-m7-pro-8-256go-algerie&amp;item=26712933&amp;id_famille=3758&amp;id_fiche=0">Xiaomi  Poco M7 Pro 8/256GO</a></h3> <h3 class="text-center prix libelle-prix produit_prix"><span class="prix">Prix</span> 51 000 Da </h3> 
@@ -19,15 +24,16 @@ phone_data_shape = """
 """
 
 
+#get all the cards of the phones in the html content
 def getShapes(html_content):
     #returns a tuple of length 1 of the captured group between() and added ? for non greedy, and added re.DOTALL so that . would match newline character
     shapes = re.findall(r'class="card-body"(?:.*?)>(.*?)</div>',html_content,re.DOTALL)
     return shapes
 
 def getPrice(data_shape):
+    #"""Extract price in Dinars from the card HTML by searching for 'Prix ... Da' pattern and capturing the number in between"""
     match = re.search(r'Prix(?:.*?)(\d{1,3}(?: \d{3})*)\s*Da', data_shape, re.DOTALL)
     price = None if not match else int(match.group(1).replace(' ', ''))
-    print("the price", price)
     return price
 
 
@@ -45,7 +51,7 @@ def getBrand(phone_name):
     """Extract brand from phone name (first word before space)"""
     if not phone_name:
         return None
-    # Extract first word (brand name)
+    # Extract first word (brand name) from phone name
     match = re.search(r'^([A-Za-z]+)', phone_name.strip())
     return match.group(1) if match else None
 
@@ -61,8 +67,8 @@ def getStorage(phone_name):
     """Extract storage from phone name (number and unit after /)"""
     if not phone_name:
         return None
-    # Match pattern like "12/256GB" or "8/256GO" - extract number and unit after /
-    match = re.search(r'\d+\s*/\s*(\d+\s*(?:GB|GO|Go))', phone_name, re.IGNORECASE)
+    # Match pattern like "12/256GB" or "8/256GO" - extract number after /
+    match = re.search(r'\d+\s*/\s*(\d+)\s*(?:GB|GO|Go)', phone_name, re.IGNORECASE)
     return match.group(1) if match else None
 
 def getModelName(phone_name, brand):
@@ -83,7 +89,7 @@ def getDisplaySize(data_shape):
     match = re.search(r'>\s*([\d.,]+)\s*Pouces\s*<', data_shape, re.IGNORECASE)
     if match:
         size = match.group(1).replace(',', '.').strip()
-        return f"{size} Pouces"
+        return size
     return None
 
 
@@ -91,7 +97,7 @@ def getDisplayType(data_shape):
     """Extract display type text (e.g., 'AMOLED') from the card HTML"""
     if not data_shape:
         return None
-
+    # First, try to find 'qualite-ecran-...' link
     match = re.search(r'qualite-ecran-[^"\s]*"[^>]*>\s*([^<]+?)\s*<', data_shape, re.IGNORECASE)
     if match:
         return match.group(1).strip()
@@ -101,7 +107,7 @@ def getDisplayType(data_shape):
         'Super AMOLED', 'Dynamic AMOLED', 'Fluid AMOLED', 'Super Retina', 'P-OLED',
         'ProMotion', 'Super LCD', 'PLS LCD'
     ]
-
+    # Fallback: search all <a> tags for known display type keywords
     anchors = re.findall(r'<a[^>]*>([^<]+)</a>', data_shape, re.IGNORECASE)
     for anchor_text in anchors:
         text = anchor_text.strip()
@@ -142,6 +148,7 @@ def create_csv():
 
 for i in range(10): 
     #the website has pagination for the phones display (10 pages) visible in the url
+    
     params = {'page_group': i}
     response = requests.get("https://webstar-electro.com/telephones-mobiles/?page=prix-telephones-portables-algerie&position=1&id_famille=3758",params=params,timeout=10) # maximum time for waiting
 
@@ -150,15 +157,13 @@ for i in range(10):
     try:
         if response.status_code == 200: 
             content = response.text
-            print(f'\n\n########### PAGE : {i}   ########## \n\n')
             shapes = getShapes(content)
             populate_phones(shapes)
-            create_csv()
+            
         else:
             print(f"Error: status code {response.status_code}")
     except requests.exceptions.RequestException as e:
         print(f"An error occurred: {e}")
     
-print(phones)
 
-
+create_csv()
