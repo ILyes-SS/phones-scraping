@@ -76,6 +76,41 @@ def getModelName(phone_name, brand):
     return model.strip() if model.strip() else None
 
 
+def getDisplaySize(data_shape):
+    """Extract display size text (e.g., '6.7 Pouces') from the card HTML"""
+    if not data_shape:
+        return None
+    match = re.search(r'>\s*([\d.,]+)\s*Pouces\s*<', data_shape, re.IGNORECASE)
+    if match:
+        size = match.group(1).replace(',', '.').strip()
+        return f"{size} Pouces"
+    return None
+
+
+def getDisplayType(data_shape):
+    """Extract display type text (e.g., 'AMOLED') from the card HTML"""
+    if not data_shape:
+        return None
+
+    match = re.search(r'qualite-ecran-[^"\s]*"[^>]*>\s*([^<]+?)\s*<', data_shape, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+
+    display_keywords = [
+        'AMOLED', 'OLED', 'LCD', 'IPS', 'TFT', 'Retina', 'Infinity', 'LTPO', 'LTPS',
+        'Super AMOLED', 'Dynamic AMOLED', 'Fluid AMOLED', 'Super Retina', 'P-OLED',
+        'ProMotion', 'Super LCD', 'PLS LCD'
+    ]
+
+    anchors = re.findall(r'<a[^>]*>([^<]+)</a>', data_shape, re.IGNORECASE)
+    for anchor_text in anchors:
+        text = anchor_text.strip()
+        lowered = text.lower()
+        if any(keyword.lower() in lowered for keyword in display_keywords):
+            return text
+
+    return None
+
 
 def populate_phones(shapes):
     for shape in shapes:
@@ -85,17 +120,21 @@ def populate_phones(shapes):
         model = getModelName(name, brand)
         ram = getRAM(name)
         storage = getStorage(name)
+        display_size = getDisplaySize(shape)
+        display_type = getDisplayType(shape)
         if price and name and brand and model and ram and storage:
             phones.append({
                 'brand': brand,
                 'model': model,
                 'ram': ram,
                 'storage': storage,
-                'price': price
+                'price': price,
+                'display_size': display_size,
+                'display_type': display_type
             })
     
 def create_csv():
-    fields = ['brand', 'model', 'ram', 'storage', 'price']
+    fields = ['brand', 'model', 'ram', 'storage', 'price', 'display_size', 'display_type']
     with open('output.csv', 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fields)
         writer.writeheader()
